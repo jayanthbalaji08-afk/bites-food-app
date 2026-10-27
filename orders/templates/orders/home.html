@@ -1,0 +1,54 @@
+{% extends "orders/base.html" %}
+{% load static %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Hungry? Get food from restaurants near you.</h1>
+    <input class="search" id="q" placeholder="Search restaurants, cuisines or dishes" aria-label="Search">
+    {% if not located %}<p class="muted" id="loc">Finding restaurants near you...</p>{% endif %}
+  </div>
+  <div class="hero-imgs">
+    <img src="{% static 'orders/img/biryani.svg' %}" alt="">
+    <img src="{% static 'orders/img/pizza.svg' %}" alt="">
+    <img src="{% static 'orders/img/dosa.svg' %}" alt="">
+  </div>
+</section>
+
+<h2 class="sec">{% if located %}Restaurants near you{% else %}All restaurants{% endif %}</h2>
+<div class="grid">
+  {% for r in restaurants %}
+  <a class="rcard{% if not r.is_open %} closed{% endif %}" href="{% url 'restaurant' r.pk %}"
+     data-search="{{ r.name }} {{ r.cuisine }} {% for i in r.items.all %}{{ i.name }} {% endfor %}">
+    <img src="{{ r.picture_url }}" alt="{{ r.name }}">
+    <div class="rname">{{ r.name }}{% if not r.is_open %} <span class="tag">Closed</span>{% endif %}</div>
+    <div class="rmeta">{{ r.cuisine }}</div>
+    {% if r.distance is not None %}<div class="chips"><span>{{ r.distance }} km</span><span>about {{ r.eta }} min</span></div>{% endif %}
+  </a>
+  {% empty %}
+  <p>No restaurants yet. Run <code>python manage.py seed</code> or sign up as a restaurant owner.</p>
+  {% endfor %}
+</div>
+<p class="muted" id="none" hidden>Nothing matches your search.</p>
+
+<script>
+  document.getElementById("q").addEventListener("input", function (e) {
+    const t = e.target.value.toLowerCase().trim();
+    let shown = 0;
+    document.querySelectorAll(".rcard").forEach(function (c) {
+      const hit = c.dataset.search.toLowerCase().includes(t);
+      c.style.display = hit ? "" : "none";
+      if (hit) shown++;
+    });
+    document.getElementById("none").hidden = shown > 0;
+  });
+  {% if not located %}
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function (p) {
+      location.search = "?lat=" + p.coords.latitude + "&lng=" + p.coords.longitude;
+    }, function () {
+      document.getElementById("loc").textContent = "Location is off, so showing all restaurants.";
+    });
+  }
+  {% endif %}
+</script>
+{% endblock %}

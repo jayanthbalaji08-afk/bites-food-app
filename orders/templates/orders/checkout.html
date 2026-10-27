@@ -1,0 +1,38 @@
+{% extends "orders/base.html" %}
+{% block title %}Checkout - Bites{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1 class="sec">Checkout</h1>
+  <div class="card">
+    <strong>{{ restaurant.name }}</strong>
+    {% for l in lines %}<div class="row"><span>{{ l.item.name }} x {{ l.qty }}</span><span>₹{{ l.subtotal|floatformat:"-2" }}</span></div>{% endfor %}
+    <div class="bill"><span>Total</span><span>₹{{ total|floatformat:"-2" }}</span></div>
+  </div>
+  <form method="post">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="flash error">{{ form.non_field_errors }}</div>{% endif %}
+    {{ form.lat }}{{ form.lng }}
+    {% for f in form.visible_fields %}{% if f.name != "payment_method" %}
+    <div class="fgroup">
+      <label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+      {% for e in f.errors %}<small class="err">{{ e }}</small>{% endfor %}
+    </div>
+    {% endif %}{% endfor %}
+    <div class="fgroup">
+      <label>Payment</label>
+      <label class="radio"><input type="radio" name="payment_method" value="cod" {% if form.payment_method.value != "online" %}checked{% endif %}> Cash on delivery</label>
+      <label class="radio"><input type="radio" name="payment_method" value="online" {% if form.payment_method.value == "online" %}checked{% endif %}> Pay online (card or UPI)</label>
+      {% for e in form.payment_method.errors %}<small class="err">{{ e }}</small>{% endfor %}
+    </div>
+    <button class="primary">Place order</button>
+  </form>
+</div>
+<script>
+  // Save your location with the order so you can track the rider on a map.
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function (p) {
+      document.getElementById("id_lat").value = p.coords.latitude;
+      document.getElementById("id_lng").value = p.coords.longitude;
+    });
+  }
+</script>
+{% endblock %}

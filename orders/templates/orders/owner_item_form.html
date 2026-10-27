@@ -1,0 +1,12 @@
+{% extends "orders/base.html" %}
+{% block title %}Edit dish - Bites{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1 class="sec">Edit {{ item.name }}</h1>
+  <form method="post" enctype="multipart/form-data" class="card">{% csrf_token %}
+    {% include "orders/_form.html" %}
+    <button class="primary">Save changes</button>
+  </form>
+  <a href="{% url 'owner_menu' %}">Back to menu</a>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "orders/base.html" %}
+{% block title %}Your cart - Bites{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1 class="sec">Your cart</h1>
+  {% for l in lines %}
+  <div class="line{% if not l.ok %} soldout{% endif %}">
+    <img src="{{ l.item.picture_url }}" alt="">
+    <div class="grow">
+      <strong>{{ l.item.name }}</strong><br>
+      <small class="muted">{{ l.item.restaurant.name }}</small>
+      {% if not l.ok %}<br><small class="err">{% if not l.item.available %}Sold out{% else %}Restaurant closed{% endif %}</small>{% endif %}
+    </div>
+    <div class="stepper">
+      <form method="post" action="{% url 'cart_dec' l.item.pk %}">{% csrf_token %}<button aria-label="Remove one">-</button></form>
+      <span>{{ l.qty }}</span>
+      <form method="post" action="{% url 'cart_inc' l.item.pk %}">{% csrf_token %}<button aria-label="Add one">+</button></form>
+    </div>
+    <strong>₹{{ l.subtotal|floatformat:"-2" }}</strong>
+  </div>
+  {% empty %}
+  <p>Your cart is empty. <a href="{% url 'home' %}">Find something to eat</a>.</p>
+  {% endfor %}
+
+  {% if lines %}
+  <div id="suggest" class="suggest-box" hidden>
+    <h2 class="sec2">Goes well with your order</h2>
+    <div id="suggest-list"></div>
+  </div>
+  <div class="bill"><span>Total</span><span>₹{{ total|floatformat:"-2" }}</span></div>
+  {% if blocked %}
+    <p class="err">Remove the unavailable dishes to continue.</p>
+  {% else %}
+    <a class="btn" href="{% url 'checkout' %}">{% if user.is_authenticated %}Continue to checkout{% else %}Log in to order{% endif %}</a>
+  {% endif %}
+  {% endif %}
+</div>
+
+{% if lines %}
+<script>
+  fetch("{% url 'cart_suggest' %}").then(r => r.json()).then(function (data) {
+    if (!data.suggestions || !data.suggestions.length) return;
+    const list = document.getElementById("suggest-list");
+    const csrf = document.querySelector("meta[name=csrf]").content;
+    data.suggestions.forEach(function (s) {
+      const row = document.createElement("div");
+      row.className = "acard";
+      const img = document.createElement("img"); img.src = s.image; img.alt = "";
+      const info = document.createElement("div"); info.className = "grow";
+      const name = document.createElement("strong"); name.textContent = s.name;
+      const sub = document.createElement("div"); sub.className = "muted"; sub.textContent = "₹" + s.price + (s.reason ? " - " + s.reason : "");
+      info.append(name, sub);
+      const form = document.createElement("form");
+      form.method = "post"; form.action = "/cart/add/" + s.id + "/";
+      form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken"><input type="hidden" name="next" value="cart"><button class="addbtn">Add</button>';
+      form.querySelector("[name=csrfmiddlewaretoken]").value = csrf;
+      row.append(img, info, form);
+      list.appendChild(row);
+    });
+    document.getElementById("suggest").hidden = false;
+  }).catch(function () {});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "orders/base.html" %}
+{% block title %}Log in - Bites{% endblock %}
+{% block content %}
+<div class="auth card">
+  <h1 class="sec">Log in</h1>
+  <form method="post">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% include "orders/_form.html" %}
+    <button class="primary">Log in</button>
+  </form>
+  <p class="muted">New here? <a href="{% url 'signup' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Create an account</a></p>
+</div>
+{% endblock %}

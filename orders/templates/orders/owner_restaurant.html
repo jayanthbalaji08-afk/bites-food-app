@@ -1,0 +1,25 @@
+{% extends "orders/base.html" %}
+{% block title %}{% if creating %}Set up your restaurant{% else %}Restaurant details{% endif %} - Bites{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1 class="sec">{% if creating %}Set up your restaurant{% else %}Restaurant details{% endif %}</h1>
+  <form method="post" enctype="multipart/form-data" class="card">{% csrf_token %}
+    {% include "orders/_form.html" %}
+    <button type="button" class="btn-outline btn-sm" id="locate">Use my current location</button>
+    <p class="muted small" id="locmsg"></p>
+    <button class="primary">Save</button>
+  </form>
+  {% if not creating %}<a href="{% url 'owner_dashboard' %}">Back to dashboard</a>{% endif %}
+</div>
+<script>
+  document.getElementById("locate").addEventListener("click", function () {
+    const msg = document.getElementById("locmsg");
+    if (!navigator.geolocation) { msg.textContent = "Location is not available in this browser."; return; }
+    navigator.geolocation.getCurrentPosition(function (p) {
+      document.getElementById("id_latitude").value = p.coords.latitude.toFixed(6);
+      document.getElementById("id_longitude").value = p.coords.longitude.toFixed(6);
+      msg.textContent = "Location filled in.";
+    }, function () { msg.textContent = "Could not get your location. Type it in manually."; });
+  });
+</script>
+{% endblock %}

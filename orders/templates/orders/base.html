@@ -1,0 +1,43 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf" content="{{ csrf_token }}">
+  <title>{% block title %}Bites - food delivery{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'orders/style.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="logo" href="{% url 'home' %}">Bites</a>
+      <nav>
+        <a href="{% url 'assistant' %}">Ask AI</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'order_history' %}">Orders</a>
+          {% if user_is_owner %}<a href="{% url 'owner_dashboard' %}">Dashboard</a>{% endif %}
+          <form method="post" action="{% url 'logout' %}" class="inline">{% csrf_token %}<button class="linkbtn">Log out</button></form>
+        {% else %}
+          <a href="{% url 'login' %}">Log in</a>
+        {% endif %}
+        <a class="cartpill" href="{% url 'cart' %}">Cart <span>{{ cart_count }}</span></a>
+      </nav>
+    </div>
+  </header>
+  {% if messages %}
+  <div class="wrap flash-wrap">
+    {% for m in messages %}<div class="flash {{ m.tags }}">{{ m }}</div>{% endfor %}
+  </div>
+  {% endif %}
+  <main class="wrap">{% block content %}{% endblock %}</main>
+  {% if cart_count %}{% if request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'restaurant' %}
+  <a class="cartbar" href="{% url 'cart' %}">
+    <div class="wrap"><span>{{ cart_count }} item{{ cart_count|pluralize }} | ₹{{ cart_total|floatformat:"-2" }}</span><span>View cart</span></div>
+  </a>
+  {% endif %}{% endif %}
+</body>
+</html>

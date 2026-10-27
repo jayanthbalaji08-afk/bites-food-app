@@ -1,0 +1,44 @@
+{% extends "orders/base.html" %}
+{% block title %}{{ r.name }} - Bites{% endblock %}
+{% block content %}
+<img class="banner" src="{{ r.picture_url }}" alt="{{ r.name }}">
+<div class="rhead">
+  <h1>{{ r.name }}</h1>
+  <div class="muted">{{ r.cuisine }}</div>
+  <div class="muted">{{ r.address }}</div>
+</div>
+{% if not r.is_open %}<div class="flash info">This restaurant is closed right now. You can browse the menu but cannot order.</div>{% endif %}
+<label class="toggle"><input type="checkbox" id="veg"> Veg only</label>
+
+<div id="menu">
+  {% for i in items %}
+  <div class="item{% if not i.available %} soldout{% endif %}" id="item-{{ i.pk }}" data-veg="{{ i.is_veg|yesno:'1,0' }}">
+    <div>
+      <span class="vmark {% if not i.is_veg %}non{% endif %}" title="{% if i.is_veg %}Veg{% else %}Non-veg{% endif %}"></span>
+      <h3>{{ i.name }}</h3>
+      <div class="price">₹{{ i.price|floatformat:"-2" }}</div>
+      <p class="muted">{{ i.description }}</p>
+    </div>
+    <div class="pic">
+      <img src="{{ i.picture_url }}" alt="{{ i.name }}">
+      {% if i.qty %}<span class="qty">{{ i.qty }}</span>{% endif %}
+      {% if i.available and r.is_open %}
+      <form method="post" action="{% url 'add_to_cart' i.pk %}">{% csrf_token %}<button class="addbtn">Add</button></form>
+      {% else %}
+      <span class="addbtn off">{% if not i.available %}Sold out{% else %}Closed{% endif %}</span>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <p class="muted">This restaurant has not added any dishes yet.</p>
+  {% endfor %}
+</div>
+
+<script>
+  document.getElementById("veg").addEventListener("change", function (e) {
+    document.querySelectorAll(".item").forEach(function (el) {
+      el.style.display = (e.target.checked && el.dataset.veg === "0") ? "none" : "";
+    });
+  });
+</script>
+{% endblock %}

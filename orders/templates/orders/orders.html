@@ -1,0 +1,28 @@
+{% extends "orders/base.html" %}
+{% block title %}Your orders - Bites{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1 class="sec">Your orders</h1>
+  {% for o in orders %}
+  <div class="card">
+    <div class="between">
+      <strong>{{ o.restaurant.name }}</strong>
+      <span class="badge st-{{ o.status }}">{{ o.get_status_display }}</span>
+    </div>
+    <div class="muted">{{ o.created_at|date:"j M Y, g:i a" }} | Order #{{ o.pk }}</div>
+    <div class="items-line">{% for l in o.lines.all %}{{ l.item.name }} x {{ l.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+    <div class="between">
+      <strong>₹{{ o.total|floatformat:"-2" }}</strong>
+      <span class="muted">{{ o.get_payment_method_display }}, {{ o.get_payment_status_display|lower }}</span>
+    </div>
+    <div class="actions">
+      <a class="btn btn-sm btn-outline" href="{% url 'order_detail' o.pk %}">{% if o.status == "on_the_way" %}Track order{% else %}View{% endif %}</a>
+      {% if o.status == "pending_payment" %}<a class="btn btn-sm" href="{% url 'pay' o.pk %}">Pay now</a>{% endif %}
+      <form method="post" action="{% url 'reorder' o.pk %}">{% csrf_token %}<button class="primary btn-sm">Order again</button></form>
+    </div>
+  </div>
+  {% empty %}
+  <p>You have not ordered yet. <a href="{% url 'home' %}">Find something to eat</a>.</p>
+  {% endfor %}
+</div>
+{% endblock %}

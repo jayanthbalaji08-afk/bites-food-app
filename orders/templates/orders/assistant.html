@@ -1,0 +1,107 @@
+{% extends "orders/base.html" %}
+{% block title %}Ask AI - Bites{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1 class="sec">What are you in the mood for?</h1>
+  <div class="suggest">
+    <button type="button">Spicy non-veg</button>
+    <button type="button">Light veg breakfast</button>
+    <button type="button">Veg under 150 rupees</button>
+    <button type="button">Something cheesy</button>
+  </div>
+  <div class="chat" id="chat" aria-live="polite">
+    <div class="bubble bot">Tell me what you feel like eating and I will pick dishes from restaurants near you. You can add them to your cart right here.</div>
+  </div>
+  <form class="askrow" id="form">
+    <input id="msg" placeholder="For example: veg under 200 rupees" autocomplete="off" maxlength="300" required>
+    <button class="primary" id="send">Ask</button>
+  </form>
+  {% if not ai_on %}<p class="muted small">Basic mode: set your ANTHROPIC_API_KEY to get smarter answers.</p>{% endif %}
+</div>
+<script>
+  let coords = null;
+  const history = [];
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p => coords = {lat: p.coords.latitude, lng: p.coords.longitude});
+  }
+  const csrf = document.querySelector("meta[name=csrf]").content;
+  const chat = document.getElementById("chat");
+  const input = document.getElementById("msg");
+  const form = document.getElementById("form");
+  const send = document.getElementById("send");
+
+  function bubble(text, cls) {
+    const d = document.createElement("div");
+    d.className = "bubble " + cls;
+    d.textContent = text;
+    chat.appendChild(d);
+    d.scrollIntoView({block: "nearest"});
+    return d;
+  }
+
+  function addToCart(item, btn) {
+    btn.disabled = true;
+    fetch("/cart/add/" + item.id + "/", {
+      method: "POST",
+      headers: {"X-CSRFToken": csrf, "X-Requested-With": "XMLHttpRequest"}
+    }).then(r => r.json()).then(function (d) {
+      btn.textContent = d.ok ? "Added" : "Unavailable";
+      if (d.ok) {
+        const pill = document.querySelector(".cartpill span");
+        if (pill) pill.textContent = d.count;
+        btn.disabled = false;
+        btn.textContent = "Add more";
+      }
+    }).catch(function () { btn.disabled = false; btn.textContent = "Retry"; });
+  }
+
+  function card(item) {
+    const row = document.createElement("div");
+    row.className = "acard";
+    const img = document.createElement("img"); img.src = item.image; img.alt = "";
+    const info = document.createElement("div"); info.className = "grow";
+    const name = document.createElement("strong"); name.textContent = item.name;
+    const sub = document.createElement("div"); sub.className = "muted";
+    sub.textContent = "₹" + item.price + " at " + item.restaurant;
+    info.append(name, sub);
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "addbtn"; btn.textContent = "Add";
+    btn.addEventListener("click", () => addToCart(item, btn));
+    row.append(img, info, btn);
+    chat.appendChild(row);
+  }
+
+  async function ask(message) {
+    bubble(message, "me");
+    const wait = bubble("Thinking...", "bot");
+    send.disabled = true;
+    try {
+      const res = await fetch("{% url 'assistant_api' %}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-CSRFToken": csrf},
+        body: JSON.stringify({message, history: history.slice(-6), ...(coords || {})})
+      });
+      const data = await res.json();
+      wait.textContent = data.reply || "Something went wrong. Please try again.";
+      (data.items || []).forEach(card);
+      if (res.ok) {
+        history.push({role: "user", content: message}, {role: "assistant", content: data.reply});
+      }
+    } catch (err) {
+      wait.textContent = "Could not reach the server. Try again.";
+    } finally {
+      send.disabled = false;
+      input.focus();
+    }
+  }
+
+  document.querySelectorAll(".suggest button").forEach(b => b.addEventListener("click", () => ask(b.textContent)));
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = "";
+    ask(message);
+  });
+</script>
+{% endblock %}

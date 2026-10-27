@@ -1,0 +1,88 @@
+{% extends "orders/base.html" %}
+{% block title %}Order #{{ order.pk }} - Bites{% endblock %}
+{% block head %}
+{% if show_map %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1 id="title">Order #{{ order.pk }}: {{ order.get_status_display|lower }}</h1>
+  <p class="muted">{{ order.restaurant.name }}, delivering to {{ order.address }}</p>
+  <p class="eta" id="eta">{{ eta_text }}</p>
+
+  {% if steps %}
+  <ol class="steps" id="steps">
+    {% for s in steps %}<li class="{% if s.done %}done{% endif %}">{{ s.label }}</li>{% endfor %}
+  </ol>
+  {% endif %}
+
+  {% if show_map %}<div id="map" aria-label="Live delivery map"></div>{% endif %}
+
+  {% if order.status == "pending_payment" and is_customer %}
+  <div class="flash info">Your order is not confirmed yet. Complete the payment to send it to the restaurant.</div>
+  <a class="btn" href="{% url 'pay' order.pk %}">Pay ₹{{ order.total|floatformat:"-2" }}</a>
+  {% endif %}
+
+  {% for l in order.lines.all %}
+  <div class="row"><span>{{ l.item.name }} x {{ l.quantity }}</span><span>₹{{ l.price|floatformat:"-2" }}</span></div>
+  {% endfor %}
+  <div class="bill"><span>Total</span><span>₹{{ order.total|floatformat:"-2" }}</span></div>
+  <p class="muted">{{ order.get_payment_method_display }}: <span id="pay-status">{{ order.get_payment_status_display }}</span>{% if order.payment_ref %} (ref {{ order.payment_ref }}){% endif %}</p>
+
+  <div class="actions">
+    {% if is_customer %}
+      <form method="post" action="{% url 'reorder' order.pk %}">{% csrf_token %}<button class="primary btn-sm">Order again</button></form>
+      {% if order.can_cancel_by_customer %}
+      <form method="post" action="{% url 'order_cancel' order.pk %}" onsubmit="return confirm('Cancel this order?')">{% csrf_token %}<button class="btn-danger btn-sm">Cancel order</button></form>
+      {% endif %}
+    {% endif %}
+    <a class="btn btn-sm btn-outline" href="{% url 'order_history' %}">All orders</a>
+  </div>
+</div>
+
+{% if show_map %}
+<script>
+  (function () {
+    const rest = [{{ rest_lat|stringformat:"f" }}, {{ rest_lng|stringformat:"f" }}];
+    const dest = [{{ dest_lat|stringformat:"f" }}, {{ dest_lng|stringformat:"f" }}];
+    const rider = [{{ rider.0|stringformat:"f" }}, {{ rider.1|stringformat:"f" }}];
+    let marker = null;
+    if (window.L) {
+      const map = L.map("map", {scrollWheelZoom: false});
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"}).addTo(map);
+      const pin = function (emoji) {
+        return L.divIcon({className: "pin", html: emoji, iconSize: [30, 30], iconAnchor: [15, 15]});
+      };
+      L.marker(rest, {icon: pin("🍽️")}).addTo(map).bindTooltip("{{ order.restaurant.name|escapejs }}");
+      L.marker(dest, {icon: pin("🏠")}).addTo(map).bindTooltip("You");
+      L.polyline([rest, dest], {color: "#f26b21", weight: 3, dashArray: "6 8"}).addTo(map);
+      marker = L.marker(rider, {icon: pin("🛵")}).addTo(map);
+      map.fitBounds([rest, dest], {padding: [40, 40]});
+    }
+    const status = "{{ order.status }}";
+    function render(d) {
+      document.getElementById("title").textContent = "Order #{{ order.pk }}: " + d.status_label.toLowerCase();
+      document.getElementById("eta").textContent = d.eta_text;
+      document.getElementById("pay-status").textContent = d.payment_status;
+      const steps = document.getElementById("steps");
+      if (steps) steps.querySelectorAll("li").forEach(function (li, i) {
+        li.classList.toggle("done", !!d.steps[i] && d.steps[i].done);
+      });
+      if (marker) marker.setLatLng([d.rider.lat, d.rider.lng]);
+    }
+    const timer = setInterval(function () {
+      if (document.hidden) return;
+      fetch("{% url 'order_status' order.pk %}").then(function (r) { return r.json(); }).then(function (d) {
+        if (d.error) return;
+        if (d.status !== status) { location.reload(); return; }
+        render(d);
+        if (d.final) clearInterval(timer);
+      }).catch(function () {});
+    }, 4000);
+  })();
+</script>
+{% endif %}
+{% endblock %}

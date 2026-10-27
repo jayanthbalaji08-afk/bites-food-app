@@ -1,0 +1,75 @@
+{% extends "orders/base.html" %}
+{% block title %}Dashboard - Bites{% endblock %}
+{% block content %}
+<div class="between">
+  <h1 class="sec">{{ r.name }}</h1>
+  <form method="post" action="{% url 'owner_toggle_open' %}">{% csrf_token %}
+    <button class="btn-sm {% if r.is_open %}btn-outline{% else %}primary{% endif %}">{% if r.is_open %}Open: tap to close{% else %}Closed: tap to open{% endif %}</button>
+  </form>
+</div>
+<div class="subnav">
+  <a href="{% url 'owner_dashboard' %}" class="on">Orders</a>
+  <a href="{% url 'owner_menu' %}">Menu</a>
+  <a href="{% url 'owner_restaurant' %}">Restaurant details</a>
+</div>
+
+<div class="stats">
+  <div class="card"><div class="muted">Orders today</div><strong class="big">{{ stats.orders }}</strong></div>
+  <div class="card"><div class="muted">Revenue today</div><strong class="big">₹{{ stats.revenue|floatformat:"-2" }}</strong></div>
+</div>
+
+<h2 class="sec2">Active orders</h2>
+{% for o in active %}
+<div class="card">
+  <div class="between">
+    <strong>Order #{{ o.pk }} - {{ o.customer_name }}</strong>
+    <span class="badge st-{{ o.status }}">{{ o.get_status_display }}</span>
+  </div>
+  <div class="muted">{{ o.created_at|date:"g:i a" }} | {{ o.phone }} | {{ o.address }}</div>
+  {% for l in o.lines.all %}<div class="row"><span>{{ l.item.name }} x {{ l.quantity }}</span><span>₹{{ l.price|floatformat:"-2" }}</span></div>{% endfor %}
+  <div class="between"><strong>₹{{ o.total|floatformat:"-2" }}</strong>
+    <span class="muted">{{ o.get_payment_method_display }}, {{ o.get_payment_status_display|lower }}</span></div>
+  <div class="actions">
+    {% if o.action_label %}
+    <form method="post" action="{% url 'owner_order_advance' o.pk %}">{% csrf_token %}
+      <input type="hidden" name="from" value="{{ o.status }}">
+      <button class="primary btn-sm">{{ o.action_label }}</button>
+    </form>
+    {% endif %}
+    {% if o.can_cancel_by_owner %}
+    <form method="post" action="{% url 'owner_order_cancel' o.pk %}" onsubmit="return confirm('Reject this order?')">{% csrf_token %}
+      <button class="btn-danger btn-sm">Reject</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% empty %}
+<p class="muted">No active orders. New orders appear here automatically.</p>
+{% endfor %}
+
+<h2 class="sec2">AI business insights</h2>
+<div class="card">
+  <p class="muted">Get plain tips based on your last 7 days of orders.</p>
+  <button class="btn-outline btn-sm" id="insights-btn" type="button">Get insights</button>
+  <pre id="insights" class="insights" hidden></pre>
+</div>
+
+<h2 class="sec2">Recent orders</h2>
+{% for o in recent %}
+<div class="row"><span>#{{ o.pk }} {{ o.customer_name }}</span>
+  <span><span class="badge st-{{ o.status }}">{{ o.get_status_display }}</span> ₹{{ o.total|floatformat:"-2" }}</span></div>
+{% empty %}<p class="muted">Nothing here yet.</p>{% endfor %}
+
+<script>
+  // Refresh every 30 seconds so new orders show up.
+  setTimeout(function () { if (!document.hidden) location.reload(); }, 30000);
+  document.getElementById("insights-btn").addEventListener("click", function (e) {
+    const btn = e.target, box = document.getElementById("insights");
+    btn.disabled = true; btn.textContent = "Thinking...";
+    fetch("{% url 'owner_insights' %}", {method: "POST", headers: {"X-CSRFToken": document.querySelector("meta[name=csrf]").content}})
+      .then(r => r.json()).then(function (d) { box.textContent = d.text || "No insights available."; box.hidden = false; })
+      .catch(function () { box.textContent = "Could not load insights."; box.hidden = false; })
+      .finally(function () { btn.disabled = false; btn.textContent = "Refresh insights"; });
+  });
+</script>
+{% endblock %}

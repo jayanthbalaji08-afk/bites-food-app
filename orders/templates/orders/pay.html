@@ -1,0 +1,45 @@
+{% extends "orders/base.html" %}
+{% block title %}Pay - Bites{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1 class="sec">Pay ₹{{ order.total|floatformat:"-2" }}</h1>
+  <div class="flash info">Demo payment: no real money is charged. Use card 4242 4242 4242 4242 with any future expiry and any CVV. Card 4000 0000 0000 0002 is declined.</div>
+  {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+  <div class="tabs">
+    <label><input type="radio" name="modesel" value="card" checked> Card</label>
+    <label><input type="radio" name="modesel" value="upi"> UPI</label>
+  </div>
+
+  <form method="post" id="card-form" class="card">{% csrf_token %}
+    <input type="hidden" name="mode" value="card">
+    <div class="fgroup"><label for="cn">Card number</label><input id="cn" name="card_number" inputmode="numeric" autocomplete="off" placeholder="4242 4242 4242 4242" maxlength="23" required></div>
+    <div class="two">
+      <div class="fgroup"><label for="ex">Expiry (MM/YY)</label><input id="ex" name="expiry" placeholder="08/29" maxlength="5" autocomplete="off" required></div>
+      <div class="fgroup"><label for="cv">CVV</label><input id="cv" name="cvv" inputmode="numeric" maxlength="4" autocomplete="off" required></div>
+    </div>
+    <button class="primary">Pay ₹{{ order.total|floatformat:"-2" }}</button>
+  </form>
+
+  <form method="post" id="upi-form" class="card" hidden>{% csrf_token %}
+    <input type="hidden" name="mode" value="upi">
+    <div class="fgroup"><label for="up">UPI ID</label><input id="up" name="upi" placeholder="name@bank" autocomplete="off" required></div>
+    <button class="primary">Pay ₹{{ order.total|floatformat:"-2" }}</button>
+  </form>
+
+  <form method="post" action="{% url 'order_cancel' order.pk %}">{% csrf_token %}
+    <button class="linkbtn muted">Cancel this order</button>
+  </form>
+</div>
+<script>
+  document.querySelectorAll("[name=modesel]").forEach(function (r) {
+    r.addEventListener("change", function () {
+      document.getElementById("card-form").hidden = r.value !== "card";
+      document.getElementById("upi-form").hidden = r.value !== "upi";
+    });
+  });
+  document.getElementById("cn").addEventListener("input", function (e) {
+    e.target.value = e.target.value.replace(/\D/g, "").slice(0, 19).replace(/(.{4})/g, "$1 ").trim();
+  });
+</script>
+{% endblock %}

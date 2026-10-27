@@ -1,0 +1,49 @@
+{% extends "orders/base.html" %}
+{% load static %}
+{% block title %}Menu - Bites{% endblock %}
+{% block content %}
+<h1 class="sec">{{ r.name }}</h1>
+<div class="subnav">
+  <a href="{% url 'owner_dashboard' %}">Orders</a>
+  <a href="{% url 'owner_menu' %}" class="on">Menu</a>
+  <a href="{% url 'owner_restaurant' %}">Restaurant details</a>
+</div>
+
+<h2 class="sec2">Your dishes</h2>
+{% for i in items %}
+<div class="line{% if not i.available %} soldout{% endif %}">
+  <img src="{{ i.picture_url }}" alt="">
+  <div class="grow"><strong>{{ i.name }}</strong> <span class="vmark {% if not i.is_veg %}non{% endif %}"></span><br>
+    <small class="muted">₹{{ i.price|floatformat:"-2" }} | {{ i.description }}</small></div>
+  <div class="actions tight">
+    <form method="post" action="{% url 'owner_item_toggle' i.pk %}">{% csrf_token %}<button class="btn-outline btn-sm">{% if i.available %}Mark sold out{% else %}Mark available{% endif %}</button></form>
+    <a class="btn btn-sm btn-outline" href="{% url 'owner_item_edit' i.pk %}">Edit</a>
+    <form method="post" action="{% url 'owner_item_delete' i.pk %}" onsubmit="return confirm('Delete this dish?')">{% csrf_token %}<button class="btn-danger btn-sm">Delete</button></form>
+  </div>
+</div>
+{% empty %}<p class="muted">No dishes yet. Add your first one below.</p>{% endfor %}
+
+<h2 class="sec2">Add a dish</h2>
+<form method="post" enctype="multipart/form-data" class="card narrow-left">{% csrf_token %}
+  {% include "orders/_form.html" %}
+  <button type="button" class="btn-outline btn-sm" id="aidesc">Write description with AI</button>
+  <p class="muted small" id="aimsg"></p>
+  <button class="primary">Add dish</button>
+</form>
+<script>
+  document.getElementById("aidesc").addEventListener("click", function () {
+    const name = document.getElementById("id_name").value.trim();
+    const msg = document.getElementById("aimsg");
+    if (!name) { msg.textContent = "Type the dish name first."; return; }
+    msg.textContent = "Writing...";
+    fetch("{% url 'owner_describe' %}", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "X-CSRFToken": document.querySelector("meta[name=csrf]").content},
+      body: JSON.stringify({name: name, is_veg: document.getElementById("id_is_veg").checked})
+    }).then(r => r.json()).then(function (d) {
+      if (d.text) { document.getElementById("id_description").value = d.text; msg.textContent = "Done. You can edit it."; }
+      else msg.textContent = d.error || "Could not write a description.";
+    }).catch(function () { msg.textContent = "Could not reach the server."; });
+  });
+</script>
+{% endblock %}
